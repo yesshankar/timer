@@ -1,0 +1,19 @@
+body {
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  background-color: #E0F2F1; /* Light teal background for the whole page */
+}
+
+/* You can also add other global styles here if needed */
+/* For example, if Vuetify's theme doesn't override picker styles as expected: */
+/*
+.v-picker__header {
+    background-color: #009688 !important; 
+}
+.v-date-picker-month__day--selected .v-btn__content {
+    color: white !important;
+}
+.v-btn--active.v-btn--variant-text .v-btn__overlay {
+    background-color: #26A69A !important;
+}
+*/
