@@ -1,307 +1,294 @@
 <template>
-  <!-- <v-app :theme="currentTheme"> -->
-  <v-app-bar color="primary" dark prominent>
-    <v-app-bar-title class="font-weight-bold">
-      <v-icon start icon="mdi-clock-outline"></v-icon>
-      Future Countdown
-    </v-app-bar-title>
-  </v-app-bar>
+  <v-container>
+    <v-row justify="center">
+      <v-col cols="12" md="10" lg="8">
+        <v-card elevation="3" class="pa-4 pa-md-6">
+          <v-card-title class="text-h5 text-md-h4 font-weight-medium text-center mb-4" style="color: #00796b">
+            Set Your Countdown Target
+          </v-card-title>
 
-  <v-main>
-    <v-container>
-      <v-row justify="center">
-        <v-col cols="12" md="10" lg="8">
-          <v-card elevation="3" class="pa-4 pa-md-6">
-            <v-card-title class="text-h5 text-md-h4 font-weight-medium text-center mb-4" style="color: #00796b">
-              Set Your Countdown Target
+          <v-radio-group v-model="selectionMode" inline class="mb-4 d-flex justify-center">
+            <v-radio label="Specific Date" value="calendar" color="primary"></v-radio>
+            <v-radio label="Target Age" value="age" color="primary"></v-radio>
+          </v-radio-group>
+          <v-divider class="mb-6"></v-divider>
+
+          <div v-if="selectionMode === 'calendar'" class="mb-4">
+            <v-btn color="primary" @click="openCalendarDialog" block size="large" class="mb-3">
+              <v-icon start>mdi-calendar</v-icon>
+              {{ originalTargetDate && selectionMode === "calendar" ? "Change Target Date" : "Choose Target Date" }}
+            </v-btn>
+            <p v-if="originalTargetDate && selectionMode === 'calendar'" class="text-center text-subtitle-1">
+              Selected: {{ formatDate(originalTargetDate, false) }}
+            </p>
+          </div>
+
+          <div v-if="selectionMode === 'age'" class="mb-4">
+            <v-row>
+              <v-col cols="12" sm="6">
+                <v-btn color="secondary" @click="openBirthdayDialog" block size="large" class="mb-2">
+                  <v-icon start>mdi-cake-variant</v-icon>
+                  {{ birthday ? "Change Birthday" : "Choose Birthday" }}
+                </v-btn>
+                <p v-if="birthday" class="text-center text-caption mt-1">Born: {{ formatDate(birthday, false) }}</p>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model.number="targetAge"
+                  label="Target Age"
+                  type="number"
+                  min="1"
+                  max="150"
+                  :disabled="!birthday"
+                  variant="outlined"
+                  density="compact"
+                  color="secondary"
+                  class="mb-0"
+                  hide-details="auto"
+                ></v-text-field>
+              </v-col>
+            </v-row>
+            <v-btn
+              color="primary-darken-1"
+              @click="setTargetDateFromAge"
+              :disabled="!birthday || !targetAge || targetAge <= 0"
+              block
+              size="large"
+              class="mt-4"
+            >
+              <v-icon start>mdi-calculator-variant</v-icon>
+              Set Countdown to Age {{ targetAge || "" }}
+            </v-btn>
+            <p v-if="originalTargetDate && selectionMode === 'age'" class="text-center text-subtitle-1 mt-3">
+              Targeting: {{ formatDate(originalTargetDate, false) }}
+            </p>
+          </div>
+
+          <v-divider class="my-5"></v-divider>
+          <div class="exclusion-section pa-3 mb-4">
+            <v-row align="center" class="mb-2">
+              <v-col cols="auto">
+                <span class="text-subtitle-1 font-weight-medium" style="color: #00695c">Daily Time Exclusion:</span>
+              </v-col>
+              <v-col>
+                <v-switch
+                  v-model="exclusionEnabled"
+                  label="Enable Exclusion"
+                  color="primary"
+                  hide-details
+                  inset
+                  density="compact"
+                ></v-switch>
+              </v-col>
+            </v-row>
+
+            <div v-if="exclusionEnabled" class="mt-1">
+              <v-radio-group v-model="exclusionMode" inline hide-details class="mb-3">
+                <template v-slot:label
+                  ><div class="text-caption" style="color: #004d40">Exclusion Method:</div></template
+                >
+                <v-radio label="Duration" value="duration" color="primary" density="compact"></v-radio>
+                <v-radio label="Time Range" value="range" color="primary" density="compact"></v-radio>
+              </v-radio-group>
+
+              <div v-if="exclusionMode === 'duration'">
+                <v-row dense>
+                  <v-col cols="6" sm="4">
+                    <v-text-field
+                      v-model.number="excludedHours"
+                      label="Hours"
+                      type="number"
+                      min="0"
+                      max="23"
+                      variant="outlined"
+                      density="compact"
+                      hide-details="auto"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="6" sm="4">
+                    <v-text-field
+                      v-model.number="excludedMinutes"
+                      label="Minutes"
+                      type="number"
+                      min="0"
+                      max="59"
+                      variant="outlined"
+                      density="compact"
+                      hide-details="auto"
+                    ></v-text-field>
+                  </v-col>
+                </v-row>
+              </div>
+
+              <div v-if="exclusionMode === 'range'">
+                <v-row dense>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="exclusionStartTime"
+                      label="Start (HH:MM)"
+                      placeholder="e.g., 19:00"
+                      variant="outlined"
+                      density="compact"
+                      hide-details="auto"
+                      :rules="[timeFormatRule]"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="exclusionEndTime"
+                      label="End (HH:MM)"
+                      placeholder="e.g., 21:00"
+                      variant="outlined"
+                      density="compact"
+                      hide-details="auto"
+                      :rules="[timeFormatRule]"
+                    ></v-text-field>
+                  </v-col>
+                </v-row>
+              </div>
+              <p class="text-caption mt-2" style="color: #00796b">
+                Daily exclusion: {{ formatDuration(dailyExclusionMilliseconds) }}
+              </p>
+            </div>
+          </div>
+
+          <v-alert
+            v-if="
+              exclusionEnabled &&
+              actualCountdownTargetDate &&
+              originalTargetDate &&
+              actualCountdownTargetDate !== originalTargetDate
+            "
+            type="info"
+            density="compact"
+            class="mt-4"
+            variant="tonal"
+          >
+            Original Target: {{ formatDate(originalTargetDate, true) }}<br />
+            Effective Target (with exclusions):
+            <strong style="color: #00695c">{{ formatDate(actualCountdownTargetDate, true) }}</strong>
+          </v-alert>
+
+          <v-card v-if="isTargetDateSet" class="mt-6 pa-4 pa-md-5" elevation="2" outlined border color="teal2">
+            <v-card-title class="headline text-center font-weight-regular" style="color: #00695c">
+              Time Remaining Until
             </v-card-title>
+            <v-card-subtitle class="text-center mb-3 text-body-1" style="color: #004d40">
+              {{ formatDate(actualCountdownTargetDate, true) }}
+            </v-card-subtitle>
+            <v-divider></v-divider>
 
-            <v-radio-group v-model="selectionMode" inline class="mb-4 d-flex justify-center">
-              <v-radio label="Specific Date" value="calendar" color="primary"></v-radio>
-              <v-radio label="Target Age" value="age" color="primary"></v-radio>
-            </v-radio-group>
-            <v-divider class="mb-6"></v-divider>
-
-            <div v-if="selectionMode === 'calendar'" class="mb-4">
-              <v-btn color="primary" @click="openCalendarDialog" block size="large" class="mb-3">
-                <v-icon start>mdi-calendar</v-icon>
-                {{ originalTargetDate && selectionMode === "calendar" ? "Change Target Date" : "Choose Target Date" }}
-              </v-btn>
-              <p v-if="originalTargetDate && selectionMode === 'calendar'" class="text-center text-subtitle-1">
-                Selected: {{ formatDate(originalTargetDate, false) }}
-              </p>
-            </div>
-
-            <div v-if="selectionMode === 'age'" class="mb-4">
-              <v-row>
-                <v-col cols="12" sm="6">
-                  <v-btn color="secondary" @click="openBirthdayDialog" block size="large" class="mb-2">
-                    <v-icon start>mdi-cake-variant</v-icon>
-                    {{ birthday ? "Change Birthday" : "Choose Birthday" }}
-                  </v-btn>
-                  <p v-if="birthday" class="text-center text-caption mt-1">Born: {{ formatDate(birthday, false) }}</p>
-                </v-col>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model.number="targetAge"
-                    label="Target Age"
-                    type="number"
-                    min="1"
-                    max="150"
-                    :disabled="!birthday"
-                    variant="outlined"
-                    density="compact"
-                    color="secondary"
-                    class="mb-0"
-                    hide-details="auto"
-                  ></v-text-field>
-                </v-col>
-              </v-row>
-              <v-btn
-                color="primary-darken-1"
-                @click="setTargetDateFromAge"
-                :disabled="!birthday || !targetAge || targetAge <= 0"
-                block
-                size="large"
-                class="mt-4"
-              >
-                <v-icon start>mdi-calculator-variant</v-icon>
-                Set Countdown to Age {{ targetAge || "" }}
-              </v-btn>
-              <p v-if="originalTargetDate && selectionMode === 'age'" class="text-center text-subtitle-1 mt-3">
-                Targeting: {{ formatDate(originalTargetDate, false) }}
-              </p>
-            </div>
-
-            <v-divider class="my-5"></v-divider>
-            <div class="exclusion-section pa-3 mb-4">
-              <v-row align="center" class="mb-2">
-                <v-col cols="auto">
-                  <span class="text-subtitle-1 font-weight-medium" style="color: #00695c">Daily Time Exclusion:</span>
-                </v-col>
-                <v-col>
-                  <v-switch
-                    v-model="exclusionEnabled"
-                    label="Enable Exclusion"
-                    color="primary"
-                    hide-details
-                    inset
-                    density="compact"
-                  ></v-switch>
-                </v-col>
-              </v-row>
-
-              <div v-if="exclusionEnabled" class="mt-1">
-                <v-radio-group v-model="exclusionMode" inline hide-details class="mb-3">
-                  <template v-slot:label
-                    ><div class="text-caption" style="color: #004d40">Exclusion Method:</div></template
-                  >
-                  <v-radio label="Duration" value="duration" color="primary" density="compact"></v-radio>
-                  <v-radio label="Time Range" value="range" color="primary" density="compact"></v-radio>
-                </v-radio-group>
-
-                <div v-if="exclusionMode === 'duration'">
-                  <v-row dense>
-                    <v-col cols="6" sm="4">
-                      <v-text-field
-                        v-model.number="excludedHours"
-                        label="Hours"
-                        type="number"
-                        min="0"
-                        max="23"
-                        variant="outlined"
-                        density="compact"
-                        hide-details="auto"
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="6" sm="4">
-                      <v-text-field
-                        v-model.number="excludedMinutes"
-                        label="Minutes"
-                        type="number"
-                        min="0"
-                        max="59"
-                        variant="outlined"
-                        density="compact"
-                        hide-details="auto"
-                      ></v-text-field>
-                    </v-col>
-                  </v-row>
-                </div>
-
-                <div v-if="exclusionMode === 'range'">
-                  <v-row dense>
-                    <v-col cols="12" sm="6">
-                      <v-text-field
-                        v-model="exclusionStartTime"
-                        label="Start (HH:MM)"
-                        placeholder="e.g., 19:00"
-                        variant="outlined"
-                        density="compact"
-                        hide-details="auto"
-                        :rules="[timeFormatRule]"
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="12" sm="6">
-                      <v-text-field
-                        v-model="exclusionEndTime"
-                        label="End (HH:MM)"
-                        placeholder="e.g., 21:00"
-                        variant="outlined"
-                        density="compact"
-                        hide-details="auto"
-                        :rules="[timeFormatRule]"
-                      ></v-text-field>
-                    </v-col>
-                  </v-row>
-                </div>
-                <p class="text-caption mt-2" style="color: #00796b">
-                  Daily exclusion: {{ formatDuration(dailyExclusionMilliseconds) }}
-                </p>
+            <div v-if="!timeUp && countdown.years !== null" class="countdown-grid">
+              <div class="countdown-item">
+                <span class="value">{{ countdown.years }}</span
+                ><span class="label">Years</span>
+              </div>
+              <div class="countdown-item">
+                <span class="value">{{ countdown.months }}</span
+                ><span class="label">Months</span>
+              </div>
+              <div class="countdown-item">
+                <span class="value">{{ countdown.days }}</span
+                ><span class="label">Days</span>
+              </div>
+              <div class="countdown-item">
+                <span class="value">{{ countdown.hours }}</span
+                ><span class="label">Hours</span>
+              </div>
+              <div class="countdown-item">
+                <span class="value">{{ countdown.minutes }}</span
+                ><span class="label">Minutes</span>
+              </div>
+              <div class="countdown-item">
+                <span class="value">{{ countdown.seconds }}</span
+                ><span class="label">Seconds</span>
               </div>
             </div>
+            <div v-else-if="timeUp" class="mt-4 text-h5 text-center font-weight-bold" style="color: #009688">
+              🎉 The target date has arrived! 🎉
+            </div>
+            <div v-else class="text-center mt-4 pa-5">
+              <v-progress-circular indeterminate color="primary" size="48"></v-progress-circular>
+              <p class="mt-3 text-body-2" style="color: #00796b">Calculating countdown...</p>
+            </div>
+          </v-card>
 
-            <v-alert
-              v-if="
+          <v-alert v-if="errorMessage" type="error" dismissible class="mt-4" density="compact">
+            {{ errorMessage }}
+          </v-alert>
+          <v-alert
+            v-if="
+              infoMessage &&
+              !(
                 exclusionEnabled &&
                 actualCountdownTargetDate &&
                 originalTargetDate &&
                 actualCountdownTargetDate !== originalTargetDate
-              "
-              type="info"
-              density="compact"
-              class="mt-4"
-              variant="tonal"
-            >
-              Original Target: {{ formatDate(originalTargetDate, true) }}<br />
-              Effective Target (with exclusions):
-              <strong style="color: #00695c">{{ formatDate(actualCountdownTargetDate, true) }}</strong>
-            </v-alert>
-
-            <v-card v-if="isTargetDateSet" class="mt-6 pa-4 pa-md-5" elevation="2" outlined border color="teal2">
-              <v-card-title class="headline text-center font-weight-regular" style="color: #00695c">
-                Time Remaining Until
-              </v-card-title>
-              <v-card-subtitle class="text-center mb-3 text-body-1" style="color: #004d40">
-                {{ formatDate(actualCountdownTargetDate, true) }}
-              </v-card-subtitle>
-              <v-divider></v-divider>
-
-              <div v-if="!timeUp && countdown.years !== null" class="countdown-grid">
-                <div class="countdown-item">
-                  <span class="value">{{ countdown.years }}</span
-                  ><span class="label">Years</span>
-                </div>
-                <div class="countdown-item">
-                  <span class="value">{{ countdown.months }}</span
-                  ><span class="label">Months</span>
-                </div>
-                <div class="countdown-item">
-                  <span class="value">{{ countdown.days }}</span
-                  ><span class="label">Days</span>
-                </div>
-                <div class="countdown-item">
-                  <span class="value">{{ countdown.hours }}</span
-                  ><span class="label">Hours</span>
-                </div>
-                <div class="countdown-item">
-                  <span class="value">{{ countdown.minutes }}</span
-                  ><span class="label">Minutes</span>
-                </div>
-                <div class="countdown-item">
-                  <span class="value">{{ countdown.seconds }}</span
-                  ><span class="label">Seconds</span>
-                </div>
-              </div>
-              <div v-else-if="timeUp" class="mt-4 text-h5 text-center font-weight-bold" style="color: #009688">
-                🎉 The target date has arrived! 🎉
-              </div>
-              <div v-else class="text-center mt-4 pa-5">
-                <v-progress-circular indeterminate color="primary" size="48"></v-progress-circular>
-                <p class="mt-3 text-body-2" style="color: #00796b">Calculating countdown...</p>
-              </div>
-            </v-card>
-
-            <v-alert v-if="errorMessage" type="error" dismissible class="mt-4" density="compact">
-              {{ errorMessage }}
-            </v-alert>
-            <v-alert
-              v-if="
-                infoMessage &&
-                !(
-                  exclusionEnabled &&
-                  actualCountdownTargetDate &&
-                  originalTargetDate &&
-                  actualCountdownTargetDate !== originalTargetDate
-                )
-              "
-              type="info"
-              dismissible
-              class="mt-4"
-              density="compact"
-            >
-              {{ infoMessage }}
-            </v-alert>
-
-            <v-btn
-              v-if="isTargetDateSet"
-              color="warning"
-              @click="clearTargetDateAndSettings"
-              block
-              size="large"
-              class="mt-6"
-            >
-              <v-icon start>mdi-delete-sweep</v-icon>
-              Clear Countdown & Settings
-            </v-btn>
-          </v-card>
-        </v-col>
-      </v-row>
-
-      <v-dialog v-model="showCalendarDialog" max-width="340px" persistent>
-        <v-card>
-          <v-card-title class="text-h6" style="background-color: #009688; color: white"
-            >Select Target Date</v-card-title
+              )
+            "
+            type="info"
+            dismissible
+            class="mt-4"
+            density="compact"
           >
-          <v-date-picker
-            v-model="tempCalendarDate"
-            :min="minPickerDate"
-            show-adjacent-months
-            color="primary"
-            header-color="primary"
-            class="ma-2"
-          ></v-date-picker>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn variant="text" @click="showCalendarDialog = false">Cancel</v-btn>
-            <v-btn color="primary" variant="flat" @click="confirmCalendarDate">OK</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+            {{ infoMessage }}
+          </v-alert>
 
-      <v-dialog v-model="showBirthdayDialog" max-width="340px" persistent>
-        <v-card>
-          <v-card-title class="text-h6" style="background-color: #00796b; color: white"
-            >Select Your Birthday</v-card-title
+          <v-btn
+            v-if="isTargetDateSet"
+            color="warning"
+            @click="clearTargetDateAndSettings"
+            block
+            size="large"
+            class="mt-6"
           >
-          <v-date-picker
-            v-model="tempBirthday"
-            :max="maxBirthdayDate"
-            show-adjacent-months
-            color="secondary"
-            header-color="secondary"
-            class="ma-2"
-          ></v-date-picker>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn variant="text" @click="showBirthdayDialog = false">Cancel</v-btn>
-            <v-btn color="secondary" variant="flat" @click="confirmBirthday">OK</v-btn>
-          </v-card-actions>
+            <v-icon start>mdi-delete-sweep</v-icon>
+            Clear Countdown & Settings
+          </v-btn>
         </v-card>
-      </v-dialog>
-    </v-container>
-  </v-main>
-  <!-- </v-app> -->
+      </v-col>
+    </v-row>
+
+    <v-dialog v-model="showCalendarDialog" max-width="340px" persistent>
+      <v-card>
+        <v-card-title class="text-h6" style="background-color: #009688; color: white">Select Target Date</v-card-title>
+        <v-date-picker
+          v-model="tempCalendarDate"
+          :min="minPickerDate"
+          show-adjacent-months
+          color="primary"
+          header-color="primary"
+          class="ma-2"
+        ></v-date-picker>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="showCalendarDialog = false">Cancel</v-btn>
+          <v-btn color="primary" variant="flat" @click="confirmCalendarDate">OK</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="showBirthdayDialog" max-width="340px" persistent>
+      <v-card>
+        <v-card-title class="text-h6" style="background-color: #00796b; color: white"
+          >Select Your Birthday</v-card-title
+        >
+        <v-date-picker
+          v-model="tempBirthday"
+          :max="maxBirthdayDate"
+          show-adjacent-months
+          color="secondary"
+          header-color="secondary"
+          class="ma-2"
+        ></v-date-picker>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="showBirthdayDialog = false">Cancel</v-btn>
+          <v-btn color="secondary" variant="flat" @click="confirmBirthday">OK</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-container>
 </template>
 
 <script setup>

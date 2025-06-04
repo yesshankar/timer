@@ -3,7 +3,10 @@
     <v-row justify="center">
       <v-col cols="12" md="8" lg="6">
         <v-card elevation="3" class="pa-4 pa-md-6">
-          <v-card-title class="text-h5 text-md-h4 font-weight-medium text-center mb-4" style="color: #00796b">
+          <v-card-title
+            class="text-h6 text-sm-h5 font-weight-medium text-center mb-4"
+            style="color: #00796b; word-wrap: break-word; white-space: normal"
+          >
             <v-icon start>mdi-meditation</v-icon>
             Breathing Exercise Timer
           </v-card-title>
@@ -19,7 +22,7 @@
                   :step="1"
                   thumb-label
                   color="primary"
-                  class="mb-2"
+                  class="mb-2 pt-2"
                   :disabled="isRunning || isPaused"
                 >
                   <template v-slot:append>
@@ -36,7 +39,7 @@
                   :step="1"
                   thumb-label
                   color="secondary"
-                  class="mb-2"
+                  class="mb-2 pt-2"
                   :disabled="isRunning || isPaused"
                 >
                   <template v-slot:append>
@@ -67,18 +70,17 @@
               </p>
               <p class="text-caption text-uppercase" style="color: #004d40">Interval Countdown</p>
 
+              <p v-if="currentVoicePhrase" class="text-h6 mt-1 font-italic" style="color: #00897b">
+                {{ currentVoicePhrase }}
+              </p>
+
               <p class="text-h4 mt-4" :style="{ color: isPaused ? '#FFA000' : '#00695C' }">
                 {{ formattedSessionTimeLeft }}
               </p>
               <p class="text-caption text-uppercase" style="color: #004d40">Session Remaining</p>
-
-              <p
-                v-if="notificationMethod === 'voice' && currentVoicePhrase"
-                class="text-h6 mt-3 font-italic"
-                style="color: #00897b"
-              >
-                {{ currentVoicePhrase }}
-              </p>
+              <div v-if="sessionStartTime && sessionEndTime" class="text-caption mt-1" style="color: #004d40">
+                Session: {{ formatTime(sessionStartTime) }} - {{ formatTime(sessionEndTime) }}
+              </div>
             </div>
             <div v-else class="text-h5 py-8" style="color: #00796b">Ready to start your session?</div>
           </div>
@@ -115,33 +117,35 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue"; // Removed reactive as it's not directly used
 
-const intervalSeconds = ref(10); // Default 10s
-const sessionMinutes = ref(5); // Default 5m
-const notificationMethod = ref("beep"); // 'beep' or 'voice'
+const intervalSeconds = ref(10);
+const sessionMinutes = ref(5);
+const notificationMethod = ref("beep");
 
 const currentIntervalTimeLeft = ref(0);
 const currentSessionTimeLeftMs = ref(0);
-const isRunning = ref(false); // Timer is actively ticking
-const isPaused = ref(false); // Timer is paused
-const isSessionActive = ref(false); // A session has started (could be running or paused)
+const isRunning = ref(false);
+const isPaused = ref(false);
+const isSessionActive = ref(false);
 
 const voicePhrases = ["Inhale", "Hold", "Exhale"];
 const currentVoicePhrase = ref("");
 let voiceCycleIndex = 0;
 
-let intervalTimerId = null; // For the 1-second tick
+let intervalTimerId = null;
 let audioContext = null;
 let wakeLockSentinel = null;
-const wakeLockVideo = ref(null); // Ref for the hidden video element
+const wakeLockVideo = ref(null);
 
 const errorMessage = ref("");
+
+const sessionStartTime = ref(null);
+const sessionEndTime = ref(null);
 
 // --- Computed Properties ---
 const formattedSessionTimeLeft = computed(() => {
   if (!isSessionActive.value && !isPaused.value && currentSessionTimeLeftMs.value <= 0) {
-    // Show initial session duration before start
     const totalSeconds = sessionMinutes.value * 60;
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -153,9 +157,16 @@ const formattedSessionTimeLeft = computed(() => {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 });
 
+// --- Helper Functions ---
+const formatTime = (dateValue) => {
+  if (!dateValue) return "";
+  const date = new Date(dateValue);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
+};
+
 // --- Audio & Speech ---
 const playBeep = () => {
-  if (!audioContext) {
+  if (typeof window !== "undefined" && !audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
   if (!audioContext) {
@@ -169,20 +180,20 @@ const playBeep = () => {
   oscillator.connect(gainNode);
   gainNode.connect(audioContext.destination);
 
-  oscillator.type = "sine"; // sine, square, sawtooth, triangle
-  oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
-  gainNode.gain.setValueAtTime(0.2, audioContext.currentTime); // Volume
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+  gainNode.gain.setValueAtTime(0.6, audioContext.currentTime); // Increased volume
 
   oscillator.start();
-  oscillator.stop(audioContext.currentTime + 0.15); // Beep duration 150ms
+  oscillator.stop(audioContext.currentTime + 0.15);
 };
 
 const speak = (text) => {
-  if ("speechSynthesis" in window) {
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    // Cancel any ongoing speech before starting new one
+    window.speechSynthesis.cancel();
+
     const utterance = new SpeechSynthesisUtterance(text);
-    // Optional: Configure voice, rate, pitch
-    // const voices = window.speechSynthesis.getVoices();
-    // utterance.voice = voices[0]; // Select a voice
     utterance.lang = "en-US";
     utterance.rate = 0.9;
     utterance.pitch = 1.1;
@@ -195,45 +206,36 @@ const speak = (text) => {
 
 // --- Wake Lock ---
 const requestWakeLock = async () => {
-  if ("wakeLock" in navigator) {
+  if (typeof navigator !== "undefined" && "wakeLock" in navigator) {
     try {
       wakeLockSentinel = await navigator.wakeLock.request("screen");
       wakeLockSentinel.addEventListener("release", () => {
-        // console.log('Screen Wake Lock was released');
-        // Re-acquire if the session is still active and document is visible
-        if (isSessionActive.value && document.visibilityState === "visible") {
+        if (isSessionActive.value && typeof document !== "undefined" && document.visibilityState === "visible") {
           requestWakeLock();
         }
       });
-      // console.log('Screen Wake Lock is active');
     } catch (err) {
-      // console.error(`Failed to acquire Screen Wake Lock: ${err.name}, ${err.message}`);
-      // Fallback to video if wake lock fails or is not supported
       playHiddenVideo();
     }
   } else {
-    // console.log('Screen Wake Lock API not supported, using video fallback.');
     playHiddenVideo();
   }
 };
 
 const releaseWakeLock = async () => {
   if (wakeLockSentinel) {
-    await wakeLockSentinel.release();
+    await wakeLockSentinel.release().catch(() => {}); // Catch potential errors on release
     wakeLockSentinel = null;
-    // console.log('Screen Wake Lock released');
   }
   stopHiddenVideo();
 };
 
 const playHiddenVideo = () => {
-  if (wakeLockVideo.value) {
-    // A very short, silent, base64 encoded MP4 video (1x1 pixel, 1 frame)
-    // This is a common workaround. You might need to generate a tiny mp4 file and base64 encode it.
-    // For simplicity, I'll just try to play. If it's not a real video source, it won't do much but might prevent some sleep modes.
-    // A more robust solution would be a tiny valid video.
-    // Example of a tiny base64 video (replace with a real one if needed for better effect):
-    // wakeLockVideo.value.src = 'data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAAZRtb292AAAAbG12aGQAAAAAzasAAAMAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAABhpb2RzAAAAABCAgIAAAQAE/////wAAAG10cmFrAAAAXHRraGQAAAAHzasAAAMAAQAAAAEAAAAAAQAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAEAAAABAgAAAAAAAG1kaWEAAAAgbWRoZAAAAAAzasAAAMAAQAgVUxAAAAAAAAlWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABdm1pbgAAABRkbmlmAAAAHGRyZWYAAAAAAAABAAAADHVybCAAAAABAAABJHN0YmwAAACNc3RzZAAAAAAAAAABAAAAmWF2YzEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAgACABAAUgAAAAAAADAAAAAAAAAABjEuMC4wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPGFzcGMBAQAAAAEAABNzdHRzAAAAAAAAAAEAAAABAAEAABxzdHNjAAAAAAAAAAEAAAABAAAAAQAAAAEAAAAYc3RzegAAAAAAAAAAAAAAAQAAAQAAABRzdGNvAAAAAAAAAAEAAAAsAAAAYnVkdGEAAABabWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAtaWxzdAAAACWpdG9vAAAAHWRhdGEAAAABAAAAAExhdmY1oC4xMi4xMDA=';
+  if (wakeLockVideo.value && wakeLockVideo.value.paused) {
+    // Check if already playing
+    // A tiny valid base64 video string
+    wakeLockVideo.value.src =
+      "data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAAZRtb292AAAAbG12aGQAAAAAzasAAAMAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAABhpb2RzAAAAABCAgIAAAQAE/////wAAAG10cmFrAAAAXHRraGQAAAAHzasAAAMAAQAAAAEAAAAAAQAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAEAAAABAgAAAAAAAG1kaWEAAAAgbWRoZAAAAAAzasAAAMAAQAgVUxAAAAAAAAlWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABdm1pbgAAABRkbmlmAAAAHGRyZWYAAAAAAAABAAAADHVybCAAAAABAAABJHN0YmwAAACNc3RzZAAAAAAAAAABAAAAmWF2YzEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAgACABAAUgAAAAAAADAAAAAAAAAABjEuMC4wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPGFzcGMBAQAAAAEAABNzdHRzAAAAAAAAAAEAAAABAAEAABxzdHNjAAAAAAAAAAEAAAABAAAAAQAAAAEAAAAYc3RzegAAAAAAAAAAAAAAAQAAAQAAABRzdGNvAAAAAAAAAAEAAAAsAAAAYnVkdGEAAABabWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAtaWxzdAAAACWpdG9vAAAAHWRhdGEAAAABAAAAAExhdmY1oC4xMi4xMDA=";
     wakeLockVideo.value.play().catch((e) => console.warn("Hidden video play failed:", e));
   }
 };
@@ -241,7 +243,8 @@ const playHiddenVideo = () => {
 const stopHiddenVideo = () => {
   if (wakeLockVideo.value) {
     wakeLockVideo.value.pause();
-    // wakeLockVideo.value.src = ''; // Clear source
+    wakeLockVideo.value.removeAttribute("src"); // Remove src to stop potential looping/network
+    wakeLockVideo.value.load(); // Reset video element
   }
 };
 
@@ -256,22 +259,24 @@ const startTimer = () => {
   isSessionActive.value = true;
   isRunning.value = true;
   isPaused.value = false;
-  // timeUp.value = false; // REMOVED: This was the problematic line
 
-  currentSessionTimeLeftMs.value = sessionMinutes.value * 60 * 1000;
+  const now = new Date();
+  sessionStartTime.value = now.toISOString();
+  const sessionDurationMs = sessionMinutes.value * 60 * 1000;
+  sessionEndTime.value = new Date(now.getTime() + sessionDurationMs).toISOString();
+
+  currentSessionTimeLeftMs.value = sessionDurationMs;
   currentIntervalTimeLeft.value = intervalSeconds.value;
-  voiceCycleIndex = 0; // Reset voice cycle
+  voiceCycleIndex = 0;
 
+  currentVoicePhrase.value = voicePhrases[voiceCycleIndex]; // Set initial phrase for display
   if (notificationMethod.value === "voice") {
-    currentVoicePhrase.value = voicePhrases[voiceCycleIndex];
     speak(currentVoicePhrase.value);
-  } else {
-    currentVoicePhrase.value = ""; // Clear phrase if not in voice mode
   }
 
   requestWakeLock();
-  tick(); // Initial tick, then setInterval
-  if (intervalTimerId) clearInterval(intervalTimerId); // Clear any existing
+  tick();
+  if (intervalTimerId) clearInterval(intervalTimerId);
   intervalTimerId = setInterval(tick, 1000);
   saveSettings();
 };
@@ -281,15 +286,16 @@ const pauseTimer = () => {
   isRunning.value = false;
   isPaused.value = true;
   if (intervalTimerId) clearInterval(intervalTimerId);
-  releaseWakeLock(); // Release lock when paused
+  releaseWakeLock();
 };
 
 const resumeTimer = () => {
   if (!isPaused.value) return;
   isRunning.value = true;
   isPaused.value = false;
-  requestWakeLock(); // Re-acquire lock
-  if (intervalTimerId) clearInterval(intervalTimerId);
+  requestWakeLock();
+  if (intervalTimerId) clearInterval(intervalTimerId); // Clear just in case
+  tick(); // Call tick immediately to avoid 1s delay if paused mid-second
   intervalTimerId = setInterval(tick, 1000);
 };
 
@@ -302,16 +308,13 @@ const stopTimer = (sessionCompleted = false) => {
 
   releaseWakeLock();
 
-  currentIntervalTimeLeft.value = 0; // Reset display
-  // currentSessionTimeLeftMs.value = 0; // Reset session time, or keep for review? Let's reset.
+  currentIntervalTimeLeft.value = intervalSeconds.value; // Reset to initial interval for next start
   if (!sessionCompleted) {
-    // Only reset session time if not completed naturally
-    currentSessionTimeLeftMs.value = 0;
+    currentSessionTimeLeftMs.value = sessionMinutes.value * 60 * 1000; // Reset to initial session for next start
+    sessionStartTime.value = null;
+    sessionEndTime.value = null;
   }
   currentVoicePhrase.value = "";
-
-  // Do not save settings on stop, user might want to resume with same settings later.
-  // Settings are saved on start or when changed.
 };
 
 const tick = () => {
@@ -320,46 +323,54 @@ const tick = () => {
   currentSessionTimeLeftMs.value -= 1000;
   currentIntervalTimeLeft.value -= 1;
 
-  if (currentSessionTimeLeftMs.value <= 0) {
+  if (currentSessionTimeLeftMs.value < 0) {
+    // Use < 0 to ensure it triggers even if slightly off
     currentSessionTimeLeftMs.value = 0;
-    currentIntervalTimeLeft.value = 0; // Ensure interval also shows 0
+    currentIntervalTimeLeft.value = 0;
     handleSessionEnd();
     return;
   }
 
   if (currentIntervalTimeLeft.value <= 0) {
     handleIntervalEnd();
-    currentIntervalTimeLeft.value = intervalSeconds.value; // Reset interval
+    // Reset interval only if session is not about to end in this same tick
+    if (currentSessionTimeLeftMs.value > 0) {
+      currentIntervalTimeLeft.value = intervalSeconds.value;
+    } else {
+      currentIntervalTimeLeft.value = 0; // Ensure it shows 0 if session ends
+    }
   }
 };
 
 const handleIntervalEnd = () => {
   if (notificationMethod.value === "beep") {
     playBeep();
-  } else if (notificationMethod.value === "voice") {
-    voiceCycleIndex = (voiceCycleIndex + 1) % voicePhrases.length;
-    currentVoicePhrase.value = voicePhrases[voiceCycleIndex];
+  }
+  // Always cycle phrase for display, speak only if voice mode
+  voiceCycleIndex = (voiceCycleIndex + 1) % voicePhrases.length;
+  currentVoicePhrase.value = voicePhrases[voiceCycleIndex];
+  if (notificationMethod.value === "voice") {
     speak(currentVoicePhrase.value);
   }
 };
 
 const handleSessionEnd = () => {
-  stopTimer(true); // Pass true to indicate session completed naturally
-  const completedMinutes = sessionMinutes.value; // Use the initial setting for the message
+  stopTimer(true);
+  const completedMinutes = sessionMinutes.value;
   speak(`Congratulations! You have completed your ${completedMinutes} minute breathing session.`);
-  // Optionally, display a message on screen
-  // infoMessage.value = `Session of ${completedMinutes} minutes completed!`;
 };
 
 // --- Settings Persistence ---
 const saveSettings = () => {
   try {
-    const settings = {
-      intervalSeconds: intervalSeconds.value,
-      sessionMinutes: sessionMinutes.value,
-      notificationMethod: notificationMethod.value,
-    };
-    localStorage.setItem("breathTimerSettings", JSON.stringify(settings));
+    if (typeof localStorage !== "undefined") {
+      const settings = {
+        intervalSeconds: intervalSeconds.value,
+        sessionMinutes: sessionMinutes.value,
+        notificationMethod: notificationMethod.value,
+      };
+      localStorage.setItem("breathTimerSettings", JSON.stringify(settings));
+    }
   } catch (e) {
     console.error("Error saving breath timer settings:", e);
     errorMessage.value = "Could not save settings. Local storage might be full or disabled.";
@@ -368,37 +379,45 @@ const saveSettings = () => {
 
 const loadSettings = () => {
   try {
-    const savedSettings = localStorage.getItem("breathTimerSettings");
-    if (savedSettings) {
-      const settings = JSON.parse(savedSettings);
-      intervalSeconds.value = settings.intervalSeconds || 10;
-      sessionMinutes.value = settings.sessionMinutes || 5;
-      notificationMethod.value = settings.notificationMethod || "beep";
+    if (typeof localStorage !== "undefined") {
+      const savedSettings = localStorage.getItem("breathTimerSettings");
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        intervalSeconds.value = settings.intervalSeconds || 10;
+        sessionMinutes.value = settings.sessionMinutes || 5;
+        notificationMethod.value = settings.notificationMethod || "beep";
+      }
     }
-    // Initialize display based on loaded settings before timer starts
-    currentIntervalTimeLeft.value = intervalSeconds.value;
-    currentSessionTimeLeftMs.value = sessionMinutes.value * 60 * 1000;
   } catch (e) {
     console.error("Error loading breath timer settings:", e);
     errorMessage.value = "Could not load saved settings.";
-    localStorage.removeItem("breathTimerSettings");
+    if (typeof localStorage !== "undefined") localStorage.removeItem("breathTimerSettings");
+  } finally {
+    // Initialize display based on loaded or default settings
+    currentIntervalTimeLeft.value = intervalSeconds.value;
+    currentSessionTimeLeftMs.value = sessionMinutes.value * 60 * 1000;
   }
 };
 
 // --- Watchers ---
 watch([intervalSeconds, sessionMinutes, notificationMethod], () => {
   if (!isRunning.value && !isPaused.value) {
-    // Only save if timer is not active
     saveSettings();
-    // Update display if timer not running
     currentIntervalTimeLeft.value = intervalSeconds.value;
     currentSessionTimeLeftMs.value = sessionMinutes.value * 60 * 1000;
+    sessionStartTime.value = null; // Clear session times if settings change before start
+    sessionEndTime.value = null;
   }
 });
 
-// Re-acquire wake lock if document becomes visible
 const handleVisibilityChange = () => {
-  if (document.visibilityState === "visible" && isSessionActive.value && isRunning.value && !wakeLockSentinel) {
+  if (
+    typeof document !== "undefined" &&
+    document.visibilityState === "visible" &&
+    isSessionActive.value &&
+    isRunning.value &&
+    !wakeLockSentinel
+  ) {
     requestWakeLock();
   }
 };
@@ -408,16 +427,23 @@ onMounted(() => {
   loadSettings();
   if (typeof window !== "undefined") {
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    // Ensure SpeechSynthesis queue is clear on page load/reload
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
   }
 });
 
 onBeforeUnmount(() => {
-  stopTimer(); // Ensure timer and wake lock are cleared
+  stopTimer();
   if (typeof window !== "undefined") {
     document.removeEventListener("visibilitychange", handleVisibilityChange);
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel(); // Clear speech queue
+    }
   }
   if (audioContext && audioContext.state !== "closed") {
-    audioContext.close(); // Clean up AudioContext
+    audioContext.close().catch((e) => console.warn("Error closing AudioContext:", e));
   }
 });
 </script>
@@ -427,8 +453,13 @@ onBeforeUnmount(() => {
   opacity: 0.6;
   pointer-events: none;
 }
-/* Add any component-specific styles here, consistent with the teal theme */
 .v-slider__thumb-label {
-  background-color: #00796b !important; /* Teal 700 for slider thumb */
+  background-color: #00796b !important;
+}
+/* Ensure card title wraps and doesn't show ellipsis */
+.v-card-title {
+  white-space: normal !important; /* Allow wrapping */
+  overflow: visible !important; /* Prevent ellipsis */
+  word-wrap: break-word; /* Break long words if necessary */
 }
 </style>

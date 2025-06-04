@@ -1,7 +1,7 @@
 body {
   font-family: 'Roboto', sans-serif;
   margin: 0;
-  background-color: #E0F2F1; /* Light teal background for the whole page */
+  /*background-color: #E0F2F1;*/ /* background-color will be controlled by Vuetify theme's background color */
 }
 
 /* You can also add other global styles here if needed */
