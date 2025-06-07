@@ -3,7 +3,10 @@
     <v-row justify="center">
       <v-col cols="12" md="10" lg="8">
         <v-card elevation="3" class="pa-4 pa-md-6">
-          <v-card-title class="text-h5 text-md-h4 font-weight-medium text-center mb-4" style="color: #00796b">
+          <v-card-title
+            class="text-h5 text-md-h4 font-weight-medium text-center mb-4 text-primary"
+            style="word-wrap: break-word; white-space: normal"
+          >
             Set Your Countdown Target
           </v-card-title>
 
@@ -65,10 +68,14 @@
           </div>
 
           <v-divider class="my-5"></v-divider>
-          <div class="exclusion-section pa-3 mb-4">
+          <v-card
+            class="exclusion-section pa-3 mb-4"
+            :color="theme.global.current.value.dark ? 'grey-darken-3' : 'teal1'"
+            flat
+          >
             <v-row align="center" class="mb-2">
               <v-col cols="auto">
-                <span class="text-subtitle-1 font-weight-medium" style="color: #00695c">Daily Time Exclusion:</span>
+                <span class="text-subtitle-1 font-weight-medium text-secondary">Daily Time Exclusion:</span>
               </v-col>
               <v-col>
                 <v-switch
@@ -84,9 +91,7 @@
 
             <div v-if="exclusionEnabled" class="mt-1">
               <v-radio-group v-model="exclusionMode" inline hide-details class="mb-3">
-                <template v-slot:label
-                  ><div class="text-caption" style="color: #004d40">Exclusion Method:</div></template
-                >
+                <template v-slot:label><div class="text-caption text-medium-emphasis">Exclusion Method:</div></template>
                 <v-radio label="Duration" value="duration" color="primary" density="compact"></v-radio>
                 <v-radio label="Time Range" value="range" color="primary" density="compact"></v-radio>
               </v-radio-group>
@@ -146,11 +151,11 @@
                   </v-col>
                 </v-row>
               </div>
-              <p class="text-caption mt-2" style="color: #00796b">
+              <p class="text-caption mt-2 text-primary">
                 Daily exclusion: {{ formatDuration(dailyExclusionMilliseconds) }}
               </p>
             </div>
-          </div>
+          </v-card>
 
           <v-alert
             v-if="
@@ -166,14 +171,21 @@
           >
             Original Target: {{ formatDate(originalTargetDate, true) }}<br />
             Effective Target (with exclusions):
-            <strong style="color: #00695c">{{ formatDate(actualCountdownTargetDate, true) }}</strong>
+            <strong class="text-secondary">{{ formatDate(actualCountdownTargetDate, true) }}</strong>
           </v-alert>
 
-          <v-card v-if="isTargetDateSet" class="mt-6 pa-4 pa-md-5" elevation="2" outlined border color="teal2">
-            <v-card-title class="headline text-center font-weight-regular" style="color: #00695c">
+          <v-card
+            v-if="isTargetDateSet"
+            class="mt-6 pa-4 pa-md-5"
+            elevation="2"
+            outlined
+            border
+            :color="theme.global.current.value.dark ? 'surface' : 'teal2'"
+          >
+            <v-card-title class="headline text-center font-weight-regular text-secondary">
               Time Remaining Until
             </v-card-title>
-            <v-card-subtitle class="text-center mb-3 text-body-1" style="color: #004d40">
+            <v-card-subtitle class="text-center mb-3 text-body-1 text-medium-emphasis">
               {{ formatDate(actualCountdownTargetDate, true) }}
             </v-card-subtitle>
             <v-divider></v-divider>
@@ -204,12 +216,12 @@
                 ><span class="label">Seconds</span>
               </div>
             </div>
-            <div v-else-if="timeUp" class="mt-4 text-h5 text-center font-weight-bold" style="color: #009688">
+            <div v-else-if="timeUp" class="mt-4 text-h5 text-center font-weight-bold text-primary">
               🎉 The target date has arrived! 🎉
             </div>
             <div v-else class="text-center mt-4 pa-5">
               <v-progress-circular indeterminate color="primary" size="48"></v-progress-circular>
-              <p class="mt-3 text-body-2" style="color: #00796b">Calculating countdown...</p>
+              <p class="mt-3 text-body-2 text-primary">Calculating countdown...</p>
             </div>
           </v-card>
 
@@ -251,7 +263,11 @@
 
     <v-dialog v-model="showCalendarDialog" max-width="340px" persistent>
       <v-card>
-        <v-card-title class="text-h6" style="background-color: #009688; color: white">Select Target Date</v-card-title>
+        <v-card-title
+          class="text-h6"
+          style="background-color: rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-on-primary))"
+          >Select Target Date</v-card-title
+        >
         <v-date-picker
           v-model="tempCalendarDate"
           :min="minPickerDate"
@@ -270,7 +286,9 @@
 
     <v-dialog v-model="showBirthdayDialog" max-width="340px" persistent>
       <v-card>
-        <v-card-title class="text-h6" style="background-color: #00796b; color: white"
+        <v-card-title
+          class="text-h6"
+          style="background-color: rgb(var(--v-theme-secondary)); color: rgb(var(--v-theme-on-secondary))"
           >Select Your Birthday</v-card-title
         >
         <v-date-picker
@@ -292,14 +310,17 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from "vue"; // Added reactive
+import { useTheme } from "vuetify";
 
-// No need to import createVuetify here, it's handled in main.js/plugins
+const theme = useTheme();
 
 const originalTargetDate = ref(null);
 const birthday = ref(null);
 const targetAge = ref(null);
 const selectionMode = ref("calendar");
+
+// Changed countdown back to reactive
 const countdown = reactive({
   years: null,
   months: null,
@@ -308,30 +329,28 @@ const countdown = reactive({
   minutes: null,
   seconds: null,
 });
+
 let intervalId = null;
 const timeUp = ref(false);
 const errorMessage = ref("");
 const infoMessage = ref("");
 const showCalendarDialog = ref(false);
-const tempCalendarDate = ref(null); // This will hold a Date object from v-date-picker
+const tempCalendarDate = ref(null);
 const showBirthdayDialog = ref(false);
-const tempBirthday = ref(null); // This will hold a Date object from v-date-picker
+const tempBirthday = ref(null);
 
-// Time Exclusion Refs
 const exclusionEnabled = ref(false);
-const exclusionMode = ref("duration"); // 'duration' or 'range'
+const exclusionMode = ref("duration");
 const excludedHours = ref(0);
 const excludedMinutes = ref(0);
-const exclusionStartTime = ref(""); // HH:MM format
-const exclusionEndTime = ref(""); // HH:MM format
+const exclusionStartTime = ref("");
+const exclusionEndTime = ref("");
 
-// --- Validation Rules ---
 const timeFormatRule = (v) => {
   if (!v) return true;
   return /^([01]\d|2[0-3]):([0-5]\d)$/.test(v) || "Invalid format (HH:MM)";
 };
 
-// --- Computed Properties ---
 const isTargetDateSet = computed(() => !!originalTargetDate.value);
 const minPickerDate = computed(() => new Date(new Date().setHours(0, 0, 0, 0)));
 const maxBirthdayDate = computed(() => new Date(new Date().setHours(23, 59, 59, 999)));
@@ -358,7 +377,6 @@ const dailyExclusionMilliseconds = computed(() => {
       let endTotalMinutes = endH * 60 + endM;
 
       if (endTotalMinutes < startTotalMinutes) {
-        // Handles overnight
         endTotalMinutes += 24 * 60;
       }
       const diffMinutes = endTotalMinutes - startTotalMinutes;
@@ -380,17 +398,12 @@ const actualCountdownTargetDate = computed(() => {
     if (dailyMs > 0) {
       const origDateObj = new Date(originalTargetDate.value);
       const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
-      // Ensure targetDayStart is based on the date part of origDateObj
       const targetDayStart = new Date(origDateObj.getFullYear(), origDateObj.getMonth(), origDateObj.getDate());
 
       let numDaysInvolved = 0;
       if (targetDayStart.getTime() >= todayStart.getTime()) {
-        // Calculate full days between today (start) and target day (start)
         numDaysInvolved = Math.floor((targetDayStart.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       } else {
-        // Original target date is in the past (or today but before exclusions applied),
-        // so no exclusion calculation needed in this manner.
-        // The countdown will simply show time up or a very short duration.
         return originalTargetDate.value;
       }
 
@@ -403,7 +416,6 @@ const actualCountdownTargetDate = computed(() => {
   return originalTargetDate.value;
 });
 
-// --- Methods ---
 const formatDuration = (ms) => {
   if (!ms || ms <= 0) return "0 minutes";
   const totalSeconds = Math.floor(ms / 1000);
@@ -426,78 +438,90 @@ const formatDate = (dateString, includeTime = false) => {
   return date.toLocaleString(undefined, options);
 };
 
-const calculateCountdown = () => {
-  const currentTargetISO = actualCountdownTargetDate.value;
-  if (!currentTargetISO) {
+// Re-introduced method to calculate and set countdown values
+const calculateAndSetCountdown = () => {
+  if (!actualCountdownTargetDate.value) {
     resetCountdownValues();
     return;
   }
-  const target = new Date(currentTargetISO);
+
+  const target = new Date(actualCountdownTargetDate.value);
   const now = new Date();
-  const diffMs = target.getTime() - now.getTime();
+  let diffMs = target.getTime() - now.getTime();
 
   if (diffMs <= 0) {
     timeUp.value = true;
-    resetCountdownValues(true);
+    resetCountdownValues(true); // Set to 0
     if (intervalId) clearInterval(intervalId);
     return;
   }
-  timeUp.value = false;
+  timeUp.value = false; // Ensure timeUp is false if diffMs > 0
+
   let t = new Date(target.getTime());
-  let years = t.getFullYear() - now.getFullYear();
-  let months = t.getMonth() - now.getMonth();
-  let days = t.getDate() - now.getDate();
-  let hours = t.getHours() - now.getHours();
-  let minutes = t.getMinutes() - now.getMinutes();
-  let seconds = t.getSeconds() - now.getSeconds();
+  countdown.years = t.getFullYear() - now.getFullYear();
+  countdown.months = t.getMonth() - now.getMonth();
+  countdown.days = t.getDate() - now.getDate();
+  countdown.hours = t.getHours() - now.getHours();
+  countdown.minutes = t.getMinutes() - now.getMinutes();
+  countdown.seconds = t.getSeconds() - now.getSeconds();
 
-  if (seconds < 0) {
-    seconds += 60;
-    minutes--;
+  if (countdown.seconds < 0) {
+    countdown.seconds += 60;
+    countdown.minutes--;
   }
-  if (minutes < 0) {
-    minutes += 60;
-    hours--;
+  if (countdown.minutes < 0) {
+    countdown.minutes += 60;
+    countdown.hours--;
   }
-  if (hours < 0) {
-    hours += 24;
-    days--;
+  if (countdown.hours < 0) {
+    countdown.hours += 24;
+    countdown.days--;
   }
-  if (days < 0) {
-    months--;
+  if (countdown.days < 0) {
+    countdown.months--;
     const prevMonthDays = new Date(t.getFullYear(), t.getMonth(), 0).getDate();
-    days += prevMonthDays;
+    countdown.days += prevMonthDays;
   }
-  if (months < 0) {
-    years--;
-    months += 12;
+  if (countdown.months < 0) {
+    countdown.years--;
+    countdown.months += 12;
   }
 
-  countdown.years = Math.max(0, years);
-  countdown.months = Math.max(0, months);
-  countdown.days = Math.max(0, days);
-  countdown.hours = Math.max(0, hours);
-  countdown.minutes = Math.max(0, minutes);
-  countdown.seconds = Math.max(0, seconds);
+  countdown.years = Math.max(0, countdown.years);
+  countdown.months = Math.max(0, countdown.months);
+  countdown.days = Math.max(0, countdown.days);
+  countdown.hours = Math.max(0, countdown.hours);
+  countdown.minutes = Math.max(0, countdown.minutes);
+  countdown.seconds = Math.max(0, countdown.seconds);
 };
 
 const resetCountdownValues = (isTimeUp = false) => {
-  const val = isTimeUp ? 0 : null;
-  countdown.years = val;
-  countdown.months = val;
-  countdown.days = val;
-  countdown.hours = val;
-  countdown.minutes = val;
-  countdown.seconds = val;
+  if (isTimeUp) {
+    countdown.years = 0;
+    countdown.months = 0;
+    countdown.days = 0;
+    countdown.hours = 0;
+    countdown.minutes = 0;
+    countdown.seconds = 0;
+  } else {
+    countdown.years = null;
+    countdown.months = null;
+    countdown.days = null;
+    countdown.hours = null;
+    countdown.minutes = null;
+    countdown.seconds = null;
+  }
 };
 
 const startOrUpdateCountdown = () => {
   if (intervalId) clearInterval(intervalId);
   const currentTargetISO = actualCountdownTargetDate.value;
   if (currentTargetISO) {
-    timeUp.value = false;
-    calculateCountdown(); // Initial calculation
-    intervalId = setInterval(calculateCountdown, 1000);
+    calculateAndSetCountdown(); // Initial calculation and set
+    if (!timeUp.value) {
+      // Only set interval if not already time up
+      intervalId = setInterval(calculateAndSetCountdown, 1000);
+    }
   } else {
     stopCountdown();
   }
@@ -506,24 +530,27 @@ const startOrUpdateCountdown = () => {
 const stopCountdown = () => {
   if (intervalId) clearInterval(intervalId);
   intervalId = null;
-  resetCountdownValues();
+  timeUp.value = false;
+  resetCountdownValues(); // Clear display
 };
 
 const saveSettings = () => {
   try {
-    const settings = {
-      originalTargetDate: originalTargetDate.value,
-      birthday: birthday.value,
-      targetAge: targetAge.value,
-      selectionMode: selectionMode.value,
-      exclusionEnabled: exclusionEnabled.value,
-      exclusionMode: exclusionMode.value,
-      excludedHours: excludedHours.value,
-      excludedMinutes: excludedMinutes.value,
-      exclusionStartTime: exclusionStartTime.value,
-      exclusionEndTime: exclusionEndTime.value,
-    };
-    localStorage.setItem("futureCountdownSettings", JSON.stringify(settings));
+    if (typeof localStorage !== "undefined") {
+      const settings = {
+        originalTargetDate: originalTargetDate.value,
+        birthday: birthday.value,
+        targetAge: targetAge.value,
+        selectionMode: selectionMode.value,
+        exclusionEnabled: exclusionEnabled.value,
+        exclusionMode: exclusionMode.value,
+        excludedHours: excludedHours.value,
+        excludedMinutes: excludedMinutes.value,
+        exclusionStartTime: exclusionStartTime.value,
+        exclusionEndTime: exclusionEndTime.value,
+      };
+      localStorage.setItem("futureCountdownSettings", JSON.stringify(settings));
+    }
   } catch (e) {
     console.error("Error saving settings:", e);
     errorMessage.value = "Could not save settings.";
@@ -532,24 +559,26 @@ const saveSettings = () => {
 
 const loadSettings = () => {
   try {
-    const savedSettings = localStorage.getItem("futureCountdownSettings");
-    if (savedSettings) {
-      const settings = JSON.parse(savedSettings);
-      originalTargetDate.value = settings.originalTargetDate || null;
-      birthday.value = settings.birthday || null;
-      targetAge.value = settings.targetAge || null;
-      selectionMode.value = settings.selectionMode || "calendar";
-      exclusionEnabled.value = settings.exclusionEnabled || false;
-      exclusionMode.value = settings.exclusionMode || "duration";
-      excludedHours.value = settings.excludedHours || 0;
-      excludedMinutes.value = settings.excludedMinutes || 0;
-      exclusionStartTime.value = settings.exclusionStartTime || "";
-      exclusionEndTime.value = settings.exclusionEndTime || "";
+    if (typeof localStorage !== "undefined") {
+      const savedSettings = localStorage.getItem("futureCountdownSettings");
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        originalTargetDate.value = settings.originalTargetDate || null;
+        birthday.value = settings.birthday || null;
+        targetAge.value = settings.targetAge || null;
+        selectionMode.value = settings.selectionMode || "calendar";
+        exclusionEnabled.value = settings.exclusionEnabled || false;
+        exclusionMode.value = settings.exclusionMode || "duration";
+        excludedHours.value = settings.excludedHours || 0;
+        excludedMinutes.value = settings.excludedMinutes || 0;
+        exclusionStartTime.value = settings.exclusionStartTime || "";
+        exclusionEndTime.value = settings.exclusionEndTime || "";
+      }
     }
   } catch (e) {
     console.error("Error loading settings:", e);
     errorMessage.value = "Could not load settings.";
-    localStorage.removeItem("futureCountdownSettings");
+    if (typeof localStorage !== "undefined") localStorage.removeItem("futureCountdownSettings");
   }
 };
 
@@ -560,24 +589,18 @@ const clearMessages = () => {
 
 const openCalendarDialog = () => {
   clearMessages();
-  // Initialize tempCalendarDate: if originalTargetDate exists, use it, otherwise default to tomorrow
   const initialDate =
     originalTargetDate.value && selectionMode.value === "calendar"
       ? new Date(originalTargetDate.value)
-      : new Date(minPickerDate.value.getTime() + 24 * 60 * 60 * 1000); // Default to tomorrow
+      : new Date(minPickerDate.value.getTime() + 24 * 60 * 60 * 1000);
   tempCalendarDate.value = initialDate;
   showCalendarDialog.value = true;
 };
 
 const confirmCalendarDate = () => {
   if (tempCalendarDate.value) {
-    const selected = new Date(tempCalendarDate.value); // tempCalendarDate is already a Date object
-    // Set time to midday to avoid timezone issues for date-only comparisons if needed,
-    // but for target date, user might want a specific time.
-    // For simplicity, we'll keep the time from the picker or default to start of day if only date is picked.
-    // The current v-date-picker seems to give date at 00:00:00 local time.
-    // Let's ensure it's at least the start of the selected day.
-    selected.setHours(12, 0, 0, 0); // Standardize to midday to be safe with date comparisons
+    const selected = new Date(tempCalendarDate.value);
+    selected.setHours(12, 0, 0, 0);
 
     if (selected.getTime() < minPickerDate.value.getTime()) {
       errorMessage.value = "Please select a future date.";
@@ -595,7 +618,7 @@ const openBirthdayDialog = () => {
   clearMessages();
   const initialBday = birthday.value
     ? new Date(birthday.value)
-    : new Date(maxBirthdayDate.value.getFullYear() - 20, 0, 1); // Default to 20 years ago
+    : new Date(maxBirthdayDate.value.getFullYear() - 20, 0, 1);
   tempBirthday.value = initialBday;
   showBirthdayDialog.value = true;
 };
@@ -607,7 +630,7 @@ const confirmBirthday = () => {
       errorMessage.value = "Birthday cannot be in the future.";
       return;
     }
-    selectedBirthday.setHours(0, 0, 0, 0); // Normalize to start of day
+    selectedBirthday.setHours(0, 0, 0, 0);
     birthday.value = selectedBirthday.toISOString();
     showBirthdayDialog.value = false;
     if (targetAge.value && targetAge.value > 0) setTargetDateFromAge();
@@ -622,10 +645,9 @@ const setTargetDateFromAge = () => {
     errorMessage.value = "Please select a birthday and enter a valid target age.";
     return;
   }
-  const bDate = new Date(birthday.value); // This is already normalized to 00:00:00 local
+  const bDate = new Date(birthday.value);
   const futureYear = bDate.getFullYear() + parseInt(targetAge.value);
 
-  // Create target date using original birth month and day, at midday local time
   const targetBdayDate = new Date(futureYear, bDate.getMonth(), bDate.getDate(), 12, 0, 0);
 
   if (targetBdayDate.getTime() <= new Date().getTime()) {
@@ -646,49 +668,43 @@ const clearTargetDateAndSettings = () => {
   excludedMinutes.value = 0;
   exclusionStartTime.value = "";
   exclusionEndTime.value = "";
-  // Optionally clear birthday and targetAge or keep them
-  // birthday.value = null;
-  // targetAge.value = null;
   infoMessage.value = "Countdown and all settings have been cleared.";
 };
 
 watch(
   actualCountdownTargetDate,
   (newTargetDateISO, oldTargetDateISO) => {
-    // Only save if the actual value changed to prevent unnecessary saves on init
     if (newTargetDateISO !== oldTargetDateISO) {
+      // Save only if the effective target actually changes
       saveSettings();
     }
-    startOrUpdateCountdown();
+    startOrUpdateCountdown(); // This will handle starting/stopping/updating the interval
   },
   { immediate: true }
 ); // immediate: true to run on component mount after initial values are set
 
+// Watch other settings that don't directly change actualCountdownTargetDate but should be saved
 watch(
   [
+    selectionMode,
+    birthday,
+    targetAge,
     exclusionEnabled,
     exclusionMode,
     excludedHours,
     excludedMinutes,
     exclusionStartTime,
     exclusionEndTime,
-    selectionMode,
-    birthday,
-    targetAge,
-    originalTargetDate,
   ],
   () => {
-    // This watcher ensures settings are saved when any of these change,
-    // especially if actualCountdownTargetDate computation doesn't change its output
-    // (e.g., if originalTargetDate is null, but user changes exclusion settings).
     saveSettings();
   },
   { deep: true }
-); // deep might be useful if any of these were objects, but for refs it's fine
+);
 
 onMounted(() => {
   loadSettings();
-  // The immediate watcher on actualCountdownTargetDate should handle the initial countdown start.
+  // startOrUpdateCountdown is called by the immediate watcher on actualCountdownTargetDate
 });
 
 onBeforeUnmount(() => {
@@ -697,7 +713,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Component-specific styles from the original HTML */
 .countdown-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
@@ -707,24 +722,25 @@ onBeforeUnmount(() => {
   margin-top: 1.25rem;
 }
 .countdown-item {
-  background-color: #b2dfdb; /* Teal 100 */
+  background-color: rgb(var(--v-theme-teal2));
   padding: 0.8rem 0.5rem;
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   width: 100%;
   text-align: center;
-  border: 1px solid #4db6ac; /* Teal 300 */
+  border: 1px solid rgb(var(--v-theme-teal3));
 }
 .countdown-item .value {
   font-size: 2.2em;
   font-weight: bold;
-  color: #00796b; /* Teal 700 */
+  color: rgb(var(--v-theme-primary-darken-1));
   line-height: 1.1;
   display: block;
 }
 .countdown-item .label {
   font-size: 0.75em;
-  color: #004d40; /* Teal 900 */
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.8;
   text-transform: uppercase;
   margin-top: 0.3rem;
   display: block;
@@ -752,16 +768,11 @@ onBeforeUnmount(() => {
   }
 }
 .exclusion-section {
-  border: 1px solid #80cbc4; /* Teal 200 */
   border-radius: 4px;
-  background-color: #f0f8f7; /* Very light teal/almost white */
 }
-/* Styles for v-date-picker header and active buttons can be tricky with scoped.
-   They might need to be global or use deep selectors if they don't apply.
-   However, Vuetify themes should ideally handle this.
-   If not, these might need to be in a global style file:
-    .v-picker__header { background-color: #009688 !important; }
-    .v-date-picker-month__day--selected .v-btn__content { color: white !important; }
-    .v-btn--active.v-btn--variant-text .v-btn__overlay { background-color: #26A69A !important; }
-*/
+.v-card-title {
+  white-space: normal !important;
+  overflow: visible !important;
+  word-wrap: break-word;
+}
 </style>
