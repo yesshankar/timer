@@ -6,6 +6,9 @@ import vuetify from "vite-plugin-vuetify"; // Import Vuetify plugin
 export default defineConfig({
   base: "/timer/", // for github pages
   // base: "./",
+  build: {
+    outDir: "docs",
+  },
   plugins: [
     vue(),
     vuetify({ autoImport: true }), // Enable Vuetify plugin with autoImport
